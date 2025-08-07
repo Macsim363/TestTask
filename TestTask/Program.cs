@@ -1,134 +1,58 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
+using TemplateEngine.Docx;
 
-class Program
+namespace DocxTemplateExample
 {
-	public class Payment
+	class Program
 	{
-		public string Date { get; set; }
-		public decimal Amount { get; set; }
-		public string Description { get; set; }
-	}
-
-	public class Data
-	{
-		public string FullName { get; set; }
-		public List<Payment> Payments { get; set; }
-	}
-
-	static void Main()
-	{
-		var json = File.ReadAllText("text.json");
-		var data = JsonSerializer.Deserialize<Data>(json);
-
-		string templatePath = "OutputDocument.docx";       
-		string outputPath = "OutputDocument2.docx";
-
-		File.Copy(templatePath, outputPath, true);  
-
-		using (var wordDoc = WordprocessingDocument.Open(outputPath, true))
+		
+		public class Payment
 		{
-			var mainPart = wordDoc.MainDocumentPart;
-
-			
-			ReplaceContentControlText(mainPart, "FullName", data.FullName);
-
-			
-			FillPaymentsTable(mainPart, "Payments", data.Payments);
-
-			mainPart.Document.Save();
+			public string Date { get; set; }
+			public decimal Amount { get; set; }
+			public string Description { get; set; }
 		}
 
-		Console.WriteLine("Документ успешно создан с заполненными контролами: " + outputPath);
-	}
-
-	
-	static void ReplaceContentControlText(MainDocumentPart mainPart, string tagName, string textToInsert)
-	{
-		var sdtElements = mainPart.Document.Body.Descendants<SdtElement>();
-
-		foreach (var sdt in sdtElements)
+		public class Data
 		{
-			var tag = sdt.SdtProperties?.GetFirstChild<Tag>();
-			if (tag != null && tag.Val == tagName)
-			{
-			
-				var texts = sdt.Descendants<Text>();
-				foreach (var txt in texts)
-				{
-					txt.Text = string.Empty; 
-				}
-
-				
-				var run = sdt.Descendants<Run>().FirstOrDefault();
-				if (run != null)
-				{
-					var firstText = run.GetFirstChild<Text>();
-					if (firstText != null)
-						firstText.Text = textToInsert;
-					else
-						run.AppendChild(new Text(textToInsert));
-				}
-				else
-				{
-					
-					sdt.AppendChild(new Run(new Text(textToInsert)));
-				}
-			}
+			public string FullName { get; set; }
+			public List<Payment> Payments { get; set; }
 		}
-	}
 
-
-	static void FillPaymentsTable(MainDocumentPart mainPart, string tagName, List<Payment> payments)
-	{
-		var sdtElements = mainPart.Document.Body.Descendants<SdtElement>();
-
-		foreach (var sdt in sdtElements)
+		static void Main(string[] args)
 		{
-			var tag = sdt.SdtProperties?.GetFirstChild<Tag>();
-			if (tag != null && tag.Val == tagName)
-			{
-				var table = sdt.Descendants<Table>().FirstOrDefault();
-				if (table == null)
-					continue;
-
 			
-				var rows = table.Elements<TableRow>().ToList();
-				if (rows.Count < 2)
-					continue;
+			var json = File.ReadAllText("D:\\Users\\User\\source\\repos\\TestTask\\TestTask\\artifacts\\text.json");
+			var data = JsonSerializer.Deserialize<Data>(json);
 
-				var templateRow = rows[1];
 
-				
-				while (table.Elements<TableRow>().Count() > 2)
-					table.RemoveChild(table.Elements<TableRow>().ElementAt(2));
+			var paymentsContent = data.Payments.ConvertAll(payment => new TableRowContent(
+			new FieldContent("Date", payment.Date),
+			new FieldContent("Amount", payment.Amount.ToString("N2")),
+			new FieldContent("Description", payment.Description)
+			));
 
-				foreach (var payment in payments)
-				{
-					var newRow = (TableRow)templateRow.CloneNode(true);
+			var content = new Content(
+			new FieldContent("FullName", data.FullName),
+			new TableContent("Payments", paymentsContent)
+			);
 
-					
-					foreach (var text in newRow.Descendants<Text>())
-					{
-						if (text.Text.Contains("{{Date}}"))
-							text.Text = payment.Date ?? "";
-						else if (text.Text.Contains("{{Amount}}"))
-							text.Text = payment.Amount.ToString("N2");
-						else if (text.Text.Contains("{{Description}}"))
-							text.Text = payment.Description ?? "";
-					}
+			string templatePath = "D:\\Users\\User\\source\\repos\\TestTask\\TestTask\\artifacts\\OutputDocument.docx";
+			string outputPath = "D:\\Users\\User\\source\\repos\\TestTask\\TestTask\\SaveDocument\\FilledDocument.docx";
 
-					table.AppendChild(newRow);
-				}
+			File.Copy(templatePath, outputPath, true);
 
-				
-				table.RemoveChild(templateRow);
+			using (var templateProcessor = new TemplateProcessor(outputPath)
+				.SetRemoveContentControls(true))
+			{
+				templateProcessor.FillContent(content);
+				templateProcessor.SaveChanges(); 
 			}
+
+			Console.WriteLine("Документ успешно создан: FilledDocument.docx");
 		}
 	}
 }

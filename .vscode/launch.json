@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        {
+            "name": "Запустить проект",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/src/Test_template.csproj"
+            //"launchConfigurationId": "TargetFramework=;https"
+        }
+    ]
+}

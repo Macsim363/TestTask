@@ -1,0 +1,6 @@
+/bin/
+/obj/
+*.exe
+*.pdb
+*.runtimeconfig.json
+*.deps.json

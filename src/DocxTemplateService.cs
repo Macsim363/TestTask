@@ -36,13 +36,13 @@ namespace DocxTemplateExample.Services
         {
             try
             {
-                // Получаем базовый каталог (bin/debug/net8.0)
+              
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
 
-                // Поднимаемся на 4 уровня выше, чтобы получить корень проекта
+              
                 var projectRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
 
-                // Формируем путь к шаблону и к результатам относительно корня проекта
+                
                 var templatePath = Path.Combine(
                     projectRoot,
                     "artifacts",

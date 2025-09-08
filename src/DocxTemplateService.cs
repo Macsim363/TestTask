@@ -34,37 +34,57 @@ namespace DocxTemplateExample.Services
 
         public async Task<string> GenerateDocumentAsync(Data data)
         {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var templatePath = Path.Combine(
-                baseDir,
-                "artifacts",
-                "TemplateWithRepeatingPayments.docx"
-            );
-            var outputDir = Path.Combine(baseDir, "result");
-            Directory.CreateDirectory(outputDir);
-            var outputPath = Path.Combine(outputDir, $"FilledDocument_{Guid.NewGuid()}.docx");
+            try
+            {
+                // Получаем базовый каталог (bin/debug/net8.0)
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
 
-            var paymentsContent =
-                data.Payments?.ConvertAll(payment => new TableRowContent(
-                    new FieldContent("Date", payment.Date ?? string.Empty),
-                    new FieldContent("Amount", payment.Amount.ToString("N2")),
-                    new FieldContent("Description", payment.Description ?? string.Empty)
-                )) ?? new List<TableRowContent>();
+                // Поднимаемся на 4 уровня выше, чтобы получить корень проекта
+                var projectRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
 
-            var content = new Content(
-                new FieldContent("FullName", data.FullName ?? string.Empty),
-                new TableContent("Payments", paymentsContent)
-            );
+                // Формируем путь к шаблону и к результатам относительно корня проекта
+                var templatePath = Path.Combine(
+                    projectRoot,
+                    "artifacts",
+                    "TemplateWithRepeatingPayments.docx"
+                );
+                var outputDir = Path.Combine(projectRoot, "result");
 
-            await CopyFileSafeAsync(templatePath, outputPath);
+                if (!File.Exists(templatePath))
+                    throw new FileNotFoundException($"Template not found: {templatePath}");
 
-            using var templateProcessor = new TemplateProcessor(
-                outputPath
-            ).SetRemoveContentControls(true);
-            templateProcessor.FillContent(content);
-            templateProcessor.SaveChanges();
+                Directory.CreateDirectory(outputDir);
 
-            return outputPath;
+                var outputPath = Path.Combine(outputDir, $"FilledDocument_{Guid.NewGuid()}.docx");
+
+                var paymentsContent =
+                    data.Payments?.ConvertAll(payment => new TableRowContent(
+                        new FieldContent("Date", payment.Date ?? string.Empty),
+                        new FieldContent("Amount", payment.Amount.ToString("N2")),
+                        new FieldContent("Description", payment.Description ?? string.Empty)
+                    )) ?? new List<TableRowContent>();
+
+                var content = new Content(
+                    new FieldContent("FullName", data.FullName ?? string.Empty),
+                    new TableContent("Payments", paymentsContent)
+                );
+
+                await CopyFileSafeAsync(templatePath, outputPath);
+
+                using var templateProcessor = new TemplateProcessor(
+                    outputPath
+                ).SetRemoveContentControls(true);
+
+                templateProcessor.FillContent(content);
+                templateProcessor.SaveChanges();
+
+                return outputPath;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при генерации документа: {ex.Message}");
+                throw;
+            }
         }
     }
 }
